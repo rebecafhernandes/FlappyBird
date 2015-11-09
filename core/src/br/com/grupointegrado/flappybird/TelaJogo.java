@@ -3,15 +3,28 @@ package br.com.grupointegrado.flappybird;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.viewport.FillViewport;
+
+import java.awt.Color;
 
 /**
  * Created by Rebeca on 28/09/2015.
@@ -22,9 +35,17 @@ public class TelaJogo extends TelaBase {
     private World mundo; // representa o mundo do Box2D
     private Body chao; // corpo do chao
     private Passaro passaro;
+    private Array<Obstaculo> obstaculos;
+    private int pontuacao = 0;
+    private BitmapFont fontePontuacao;
+    private Stage palcoInformacoes;
+    private Label lbPontuacao;
+    private ImageButton btnPlay;
+    private ImageButton btnGameOver;
+    private OrthographicCamera cameraInfo;
+    private boolean gameOver = false;
 
     private Box2DDebugRenderer debug; //representa o mundo na tela para ajudar no desenvolvimento.
-
 
     public TelaJogo(MainGame game) {
         super(game);
@@ -35,25 +56,71 @@ public class TelaJogo extends TelaBase {
     public void show() {
 
         camera = new OrthographicCamera(Gdx.graphics.getWidth() / Util.ESCALA, Gdx.graphics.getHeight() / Util.ESCALA);
+        cameraInfo = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         debug = new Box2DDebugRenderer();
         mundo = new World(new Vector2(0, -9.8f), false);
+        mundo.setContactListener(new ContactListener() {
+            @Override
+            public void beginContact(Contact contact) {
+                detectarColisao(contact.getFixtureA(), contact.getFixtureB());
+            }
+
+            @Override
+            public void endContact(Contact contact) {
+
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold) {
+
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse) {
+
+            }
+        });
 
         initChao();
         initPassaro();
+        initFontes();
+        initInformacoes();
+    }
 
-        new Obstaculo(mundo, camera, null);
+    /**
+     * Verifica se o pássaro está envolvido na colisão
+     * @param fixtureA
+     * @param fixtureB
+     */
+    private void detectarColisao(Fixture fixtureA, Fixture fixtureB) {
+        if ("PASSARO".equals(fixtureA.getUserData()) || "PASSARO".equals(fixtureB.getUserData())) {
+            //Game Over
+        }
+    }
 
+    private void initFontes() {
+        FreeTypeFontGenerator.FreeTypeFontParameter fonteParam =
+                new FreeTypeFontGenerator.FreeTypeFontParameter();
+        fonteParam.size = 56;
+        fonteParam.color = com.badlogic.gdx.graphics.Color.BLACK;
+        fonteParam.shadowColor = com.badlogic.gdx.graphics.Color.WHITE;
+        fonteParam.shadowOffsetX = 4;
+        fonteParam.shadowOffsetY = 4;
+
+        FreeTypeFontGenerator gerador = new FreeTypeFontGenerator(Gdx.files.internal("fonts/roboto.ttf"));
+    }
+
+    private void initInformacoes() {
+        palcoInformacoes = new Stage(new FillViewport(cameraInfo.viewportWidth, cameraInfo.viewportHeight, cameraInfo));
+        Gdx.input.setInputProcessor(palcoInformacoes);
     }
 
     private void initChao() {
-
         chao = Util.criarCorpo(mundo, BodyDef.BodyType.StaticBody, 0, 0);
     }
 
     private void initPassaro() {
         passaro = new Passaro(mundo, camera, null);
-
-
     }
 
     @Override
@@ -89,7 +156,7 @@ public class TelaJogo extends TelaBase {
      * @param delta
      */
     private void renderizar(float delta) {
-
+        palcoInformacoes.draw();
     }
 
     /**
@@ -97,10 +164,13 @@ public class TelaJogo extends TelaBase {
      * @param delta
      */
     private void atualizar(float delta) {
+        palcoInformacoes.act(delta);
 
         passaro.atualizar(delta);
         mundo.step(1f / 60f, 6, 2);
 
+        atualizarInformacoes();
+        atualizarObstaculos();
         atualizarCamera();
         atualizarChao();
 
@@ -108,6 +178,43 @@ public class TelaJogo extends TelaBase {
             passaro.pular();
         }
 
+    }
+
+    private void atualizarInformacoes() {
+        lbPontuacao.setText(pontuacao + "");
+        lbPontuacao.setPosition(cameraInfo.viewportWidth / 2 - lbPontuacao.getPrefWidth() / 2,
+                cameraInfo.viewportHeight - lbPontuacao.getPrefHeight());
+    }
+
+    private void atualizarObstaculos() {
+        //Enquanto a lista tiver menos do que 4 obstáculos, crie
+        while (obstaculos.size < 4) {
+            Obstaculo ultimo = null;
+
+            if (obstaculos.size > 0) {
+                ultimo = obstaculos.peek(); //Recupera o último item da lista
+            }
+
+            Obstaculo o = new Obstaculo(mundo, camera, ultimo);
+            obstaculos.add(o);
+        }
+
+        //Verifica se os obstáculos saíram da tela, assim poderão ser removidos
+        for (Obstaculo o : obstaculos) {
+            float inicioCamera = passaro.getCorpo().getPosition().x - (camera.viewportWidth / 2/ Util.PIXEL_METRO) - o.getLargura();
+
+            if (inicioCamera > o.getPosX()) {
+                o.remover();
+                obstaculos.removeValue(o, true);
+            } else if (!o.isPassou() && o.getPosX() < passaro.getCorpo().getPosition().x) {
+                o.setPassou(true);
+
+                //Calcular pontuação
+                pontuacao++;
+
+                //Reproduzir o som
+            }
+        }
     }
 
     private void atualizarCamera() {

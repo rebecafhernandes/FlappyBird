@@ -1,5 +1,12 @@
 package br.com.grupointegrado.flappybird;
 
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.badlogic.gdx.physics.box2d.World;
+
 /**
  * Created by Rebeca on 26/10/2015.
  */
@@ -50,7 +57,7 @@ public class Obstaculo {
         largura = 40 / Util.PIXEL_METRO;
         altura = camera.viewportHeight / Util.PIXEL_METRO;
 
-        float xInicial = largura;
+        float xInicial = largura + (camera.viewportWidth / 2);
 
         if(ultimoObstaculo != null)
             xInicial = ultimoObstaculo.getPosX();
@@ -65,12 +72,40 @@ public class Obstaculo {
         posYCima = posYBaixo + altura + 2f;
     }
 
-    public float getPosX(){
-        return this.posx;
-    }
-
     public void remover(){
         mundo.destroyBody(corpoCima);
         mundo.destroyBody(corpoBaixo);
+    }
+
+    public float getPosX() {
+        return posx;
+    }
+
+    public void setPosX(float posx) {
+        this.posx = posx;
+    }
+
+    public float getLargura() {
+        return largura;
+    }
+
+    public void setLargura(float largura) {
+        this.largura = largura;
+    }
+
+    public float getAltura() {
+        return altura;
+    }
+
+    public void setAltura(float altura) {
+        this.altura = altura;
+    }
+
+    public boolean isPassou() {
+        return passou;
+    }
+
+    public void setPassou(boolean passou) {
+        this.passou = passou;
     }
 }
