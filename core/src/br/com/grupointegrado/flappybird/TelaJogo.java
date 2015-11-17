@@ -1,16 +1,17 @@
 package br.com.grupointegrado.flappybird;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
-import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
-import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
@@ -21,21 +22,22 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FillViewport;
 
-import java.awt.Color;
 
 /**
  * Created by Rebeca on 28/09/2015.
  */
 public class TelaJogo extends TelaBase {
-
     private OrthographicCamera camera; //camera do jogo
     private World mundo; // representa o mundo do Box2D
     private Body chao; // corpo do chao
     private Passaro passaro;
-    private Array<Obstaculo> obstaculos;
+    private Array<Obstaculo> obstaculos = new Array<Obstaculo>();
+
     private int pontuacao = 0;
     private BitmapFont fontePontuacao;
     private Stage palcoInformacoes;
@@ -43,9 +45,19 @@ public class TelaJogo extends TelaBase {
     private ImageButton btnPlay;
     private ImageButton btnGameOver;
     private OrthographicCamera cameraInfo;
-    private boolean gameOver = false;
+
+    private Texture[] texturasPassaro;
+    private Texture texturaObstaculoCima;
+    private Texture texturaObstaculoBaixo;
+    private Texture texturaChao;
+    private Texture texturaFundo;
+    private Texture texturaPlay;
+    private Texture texturaGameOver;
+
+    private boolean jogoIniciado = false;
 
     private Box2DDebugRenderer debug; //representa o mundo na tela para ajudar no desenvolvimento.
+
 
     public TelaJogo(MainGame game) {
         super(game);
@@ -80,47 +92,124 @@ public class TelaJogo extends TelaBase {
 
             }
         });
-
+        initTexturas();
         initChao();
         initPassaro();
         initFontes();
         initInformacoes();
+
+
     }
 
+    private void initTexturas() {
+        texturasPassaro = new Texture[3];
+        texturasPassaro[0] = new Texture("sprites/bird-1.png");
+        texturasPassaro[1] = new Texture("sprites/bird-2.png");
+        texturasPassaro[2] = new Texture("sprites/bird-3.png");
+
+        texturaObstaculoCima = new Texture("sprites/toptube.png");
+        texturaObstaculoBaixo = new Texture("sprites/bottomtube.png");
+
+        texturaFundo = new Texture("sprites/bg.png");
+        texturaChao = new Texture("sprites/ground.png");
+
+        texturaPlay = new Texture("sprites/playbtn.png");
+        texturaGameOver = new Texture("sprites/gameover.png");
+
+    }
+
+    private boolean gameOver = false;
+
     /**
-     * Verifica se o pássaro está envolvido na colisão
+     * Verifica se o passaro está envolvido na colisão
      * @param fixtureA
      * @param fixtureB
      */
     private void detectarColisao(Fixture fixtureA, Fixture fixtureB) {
-        if ("PASSARO".equals(fixtureA.getUserData()) || "PASSARO".equals(fixtureB.getUserData())) {
-            //Game Over
+        if("PASSARO".equals(fixtureA.getUserData()) ||
+                "PASSARO".equals(fixtureB.getUserData())){
+            //game over
+            gameOver = true;
+
         }
     }
 
     private void initFontes() {
         FreeTypeFontGenerator.FreeTypeFontParameter fonteParam =
                 new FreeTypeFontGenerator.FreeTypeFontParameter();
+
         fonteParam.size = 56;
-        fonteParam.color = com.badlogic.gdx.graphics.Color.BLACK;
-        fonteParam.shadowColor = com.badlogic.gdx.graphics.Color.WHITE;
+        fonteParam.color = Color.WHITE;
+        fonteParam.shadowColor = Color.BLACK;
         fonteParam.shadowOffsetX = 4;
         fonteParam.shadowOffsetY = 4;
 
-        FreeTypeFontGenerator gerador = new FreeTypeFontGenerator(Gdx.files.internal("fonts/roboto.ttf"));
+        FreeTypeFontGenerator gerador = new
+                FreeTypeFontGenerator(Gdx.files.internal("fonts/roboto.ttf"));
+
+        fontePontuacao = gerador.generateFont(fonteParam);
+
+        gerador.dispose();
+
     }
 
     private void initInformacoes() {
-        palcoInformacoes = new Stage(new FillViewport(cameraInfo.viewportWidth, cameraInfo.viewportHeight, cameraInfo));
+        palcoInformacoes = new Stage(new FillViewport(cameraInfo.viewportWidth,
+                cameraInfo.viewportHeight, cameraInfo));
         Gdx.input.setInputProcessor(palcoInformacoes);
+
+        //inicia labels
+        Label.LabelStyle estilo = new Label.LabelStyle();
+        estilo.font = fontePontuacao;
+
+        lbPontuacao = new Label("0", estilo);
+        palcoInformacoes.addActor(lbPontuacao);
+
+        //inicia botões
+        ImageButton.ImageButtonStyle estiloBotao =
+                new ImageButton.ImageButtonStyle();
+
+        estiloBotao.up = new SpriteDrawable(new Sprite(texturaPlay));
+        btnPlay = new ImageButton(estiloBotao);
+        btnPlay.addListener(new ClickListener(){
+            @Override
+            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                jogoIniciado = true;
+            }
+        });
+        palcoInformacoes.addActor(btnPlay);
+
+        estiloBotao = new ImageButton.ImageButtonStyle();
+        estiloBotao.up = new SpriteDrawable(new Sprite(texturaGameOver));
+
+        btnGameOver = new ImageButton(estiloBotao);
+        btnGameOver.addListener(new ClickListener() {
+            @Override
+            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                reiniciarJogo();
+            }
+        });
+        palcoInformacoes.addActor(btnGameOver);
+    }
+
+    /**
+     * Recria a tela do jogo com todos os seus componentes
+     */
+
+    private void reiniciarJogo() {
+        //aqui vai o código de reiniciar;
+        game.setScreen(new TelaJogo(game));
     }
 
     private void initChao() {
+
         chao = Util.criarCorpo(mundo, BodyDef.BodyType.StaticBody, 0, 0);
     }
 
     private void initPassaro() {
         passaro = new Passaro(mundo, camera, null);
+
+
     }
 
     @Override
@@ -166,15 +255,24 @@ public class TelaJogo extends TelaBase {
     private void atualizar(float delta) {
         palcoInformacoes.act(delta);
 
-        passaro.atualizar(delta);
-        mundo.step(1f / 60f, 6, 2);
+        passaro.getCorpo().setFixedRotation(!gameOver);
+        passaro.atualizar(delta, !gameOver);
+
+        if(jogoIniciado){
+            mundo.step(1f / 60f, 6, 2);
+            atualizarObstaculos();
+        }
 
         atualizarInformacoes();
-        atualizarObstaculos();
-        atualizarCamera();
-        atualizarChao();
 
-        if (pulando){
+
+        if(!gameOver){
+            atualizarCamera();
+            atualizarChao();
+
+        }
+
+        if (pulando && !gameOver && jogoIniciado){
             passaro.pular();
         }
 
@@ -182,45 +280,61 @@ public class TelaJogo extends TelaBase {
 
     private void atualizarInformacoes() {
         lbPontuacao.setText(pontuacao + "");
-        lbPontuacao.setPosition(cameraInfo.viewportWidth / 2 - lbPontuacao.getPrefWidth() / 2,
+        lbPontuacao.setPosition(
+                cameraInfo.viewportWidth / 2 - lbPontuacao.getPrefWidth() / 2,
                 cameraInfo.viewportHeight - lbPontuacao.getPrefHeight());
+
+        btnPlay.setPosition(
+                cameraInfo.viewportWidth / 2 - btnPlay.getPrefWidth() / 2,
+                cameraInfo.viewportHeight / 2 - btnPlay.getPrefHeight() * 2
+        );
+        btnPlay.setVisible(!jogoIniciado);
+
+        btnGameOver.setPosition(
+                cameraInfo.viewportWidth / 2 - btnGameOver.getPrefWidth() / 2,
+                cameraInfo.viewportHeight / 2 - btnGameOver.getPrefHeight() / 2
+        );
+        btnGameOver.setVisible(gameOver);
     }
 
     private void atualizarObstaculos() {
-        //Enquanto a lista tiver menos do que 4 obstáculos, crie
-        while (obstaculos.size < 4) {
+
+        //enquanto a lista tiver menos do que 4, crie obstáculos
+        while (obstaculos.size < 4){
+
             Obstaculo ultimo = null;
-
-            if (obstaculos.size > 0) {
-                ultimo = obstaculos.peek(); //Recupera o último item da lista
-            }
-
-            Obstaculo o = new Obstaculo(mundo, camera, ultimo);
+            if (obstaculos.size > 0)
+                ultimo = obstaculos.peek();
+            Obstaculo o = new Obstaculo(mundo, camera, ultimo);//recupera ultimo item da lista
             obstaculos.add(o);
         }
 
-        //Verifica se os obstáculos saíram da tela, assim poderão ser removidos
-        for (Obstaculo o : obstaculos) {
-            float inicioCamera = passaro.getCorpo().getPosition().x - (camera.viewportWidth / 2/ Util.PIXEL_METRO) - o.getLargura();
+        //verifica se os obstaculos sairam da tela para remove-los
 
-            if (inicioCamera > o.getPosX()) {
+        for(Obstaculo o: obstaculos){
+            float inicioCamera = passaro.getCorpo().getPosition().x -
+                    (camera.viewportWidth / 2 / Util.PIXEL_METRO) - o.getLargura();
+            //verifica se o obstáculo saiu da tela
+            if(inicioCamera > o.getPosX()){
                 o.remover();
                 obstaculos.removeValue(o, true);
-            } else if (!o.isPassou() && o.getPosX() < passaro.getCorpo().getPosition().x) {
+
+            }else if(!o.isPassou()&& o.getPosX() < passaro.getCorpo().getPosition().x){
                 o.setPassou(true);
-
-                //Calcular pontuação
+                //calcular a pontuação
                 pontuacao++;
+                //reproduzir o som
 
-                //Reproduzir o som
             }
         }
+
     }
 
     private void atualizarCamera() {
 
         camera.position.x = (passaro.getCorpo().getPosition().x + 34 / Util.PIXEL_METRO) * Util.PIXEL_METRO;
         camera.update();
+
     }
 
     /**
@@ -241,6 +355,8 @@ public class TelaJogo extends TelaBase {
         camera.setToOrtho(false, width / Util.ESCALA, height/Util.ESCALA);
         camera.update();
         redimensionaChao();
+        cameraInfo.setToOrtho(false, width, height);
+        cameraInfo.update();
 
     }
 
@@ -271,5 +387,20 @@ public class TelaJogo extends TelaBase {
 
         debug.dispose();
         mundo.dispose();
+        palcoInformacoes.dispose();
+        fontePontuacao.dispose();
+        texturasPassaro[0].dispose();
+        texturasPassaro[1].dispose();
+        texturasPassaro[2].dispose();
+
+        texturaObstaculoCima.dispose();
+        texturaObstaculoBaixo.dispose();
+
+        texturaFundo.dispose();
+        texturaChao.dispose();
+
+        texturaPlay.dispose();
+        texturaGameOver.dispose();
     }
 }
+
