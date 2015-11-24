@@ -1,6 +1,8 @@
 package br.com.grupointegrado.flappybird;
 
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -19,12 +21,18 @@ public class Obstaculo {
     private float largura, altura;
     private boolean passou;
 
-    private Obstaculo ultimoObstaculo; //ultimo antes do atual
 
-    public Obstaculo(World mundo, OrthographicCamera camera, Obstaculo ultimoObstaculo){
+    private Obstaculo ultimoObstaculo; //ultimo antes do atual
+    private final Texture texturaCima;
+    private final Texture texturaBaixo;
+
+    public Obstaculo(World mundo, OrthographicCamera camera, Obstaculo ultimoObstaculo,
+                     Texture texturaCima, Texture texturaBaixo){
         this.mundo = mundo;
         this.camera = camera;
         this.ultimoObstaculo = ultimoObstaculo;
+        this.texturaCima = texturaCima;
+        this.texturaBaixo = texturaBaixo;
 
         initPosicao();
         initCorpoCima();
@@ -57,12 +65,12 @@ public class Obstaculo {
         largura = 40 / Util.PIXEL_METRO;
         altura = camera.viewportHeight / Util.PIXEL_METRO;
 
-        float xInicial = largura + (camera.viewportWidth / 2);
+        float xInicial = largura + (camera.viewportWidth / 2 / Util.PIXEL_METRO);
 
         if(ultimoObstaculo != null)
             xInicial = ultimoObstaculo.getPosX();
 
-        posx = xInicial + 8; //4 é o espaço entre os obstáculos
+        posx = xInicial + 4; //4 é o espaço entre os obstáculos
 
         //tamanho de tela dividido por 6, para encontrar a posicao y do obstaculo
         float parcela = (altura - Util.ALTURA_CHAO) / 6;
@@ -72,16 +80,18 @@ public class Obstaculo {
         posYCima = posYBaixo + altura + 2f;
     }
 
+
+
     public void remover(){
         mundo.destroyBody(corpoCima);
         mundo.destroyBody(corpoBaixo);
     }
 
-    public float getPosX() {
-        return posx;
+    public float getPosX(){
+        return this.posx;
     }
 
-    public void setPosX(float posx) {
+    public void setPosx(float posx) {
         this.posx = posx;
     }
 
@@ -107,5 +117,19 @@ public class Obstaculo {
 
     public void setPassou(boolean passou) {
         this.passou = passou;
+    }
+
+    public void renderizar(SpriteBatch pincel){
+
+        float x = (corpoCima.getPosition().x - largura / 2)* Util.PIXEL_METRO;
+        float y = (corpoCima.getPosition().y - altura / 2)* Util.PIXEL_METRO;
+        pincel.draw(texturaCima, x, y, largura * Util.PIXEL_METRO, altura * Util.PIXEL_METRO);
+
+        x = (corpoBaixo.getPosition().x - largura / 2) * Util.PIXEL_METRO;
+        y = (corpoBaixo.getPosition().y - altura / 2) * Util.PIXEL_METRO;
+        pincel.draw(texturaBaixo, x ,y, largura * Util.PIXEL_METRO, altura * Util.PIXEL_METRO);
+
+
+
     }
 }
